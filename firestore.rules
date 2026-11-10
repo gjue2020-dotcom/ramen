@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 학생들은 로그인 없이 쓰기 때문에, 읽기·쓰기는 열어 두고
+    // 글자 수와 번호만 확인해요. 지우기는 어디에서도 할 수 없어서 기록이 지켜져요.
+    function okText(d) { return d.text is string && d.text.size() > 0 && d.text.size() <= 100; }
+    function okNum(d)  { return d.num is int && d.num >= 1 && d.num <= 40; }
+
+    match /live/{doc}   { allow read, create, update: if doc == 'state'; }
+    match /config/{doc} { allow read, create, update: if doc == 'settings'; }
+
+    match /sessions/{sid} {
+      allow read, create, update: if true;
+      match /questions/{id} {
+        allow read: if true;
+        allow create, update: if okText(request.resource.data) && okNum(request.resource.data);
+      }
+      match /answers/{id} {
+        allow read: if true;
+        allow create, update: if okText(request.resource.data) && okNum(request.resource.data);
+      }
+      match /rounds/{id} {
+        allow read, create, update: if true;
+      }
+    }
+  }
+}

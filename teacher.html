@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>라면질문 점프! · 선생님</title>
+<meta name="theme-color" content="#5cb8ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+<link rel="stylesheet" href="common.css">
+<style>
+.wrap.fit{height:100vh;min-height:0;overflow:hidden;padding-bottom:62px}
+.logo{margin:0;font-size:clamp(56px,7vw,96px);font-weight:400;letter-spacing:.02em}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center}
+.addr{padding:8px 18px;font-size:20px;display:inline-flex;gap:10px;align-items:center}
+.addr b{font-weight:400;font-size:26px;letter-spacing:.02em}
+
+.strip{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:17px}
+.strip .lab{color:#fff;text-shadow:2px 2px 0 var(--ink);margin-right:6px;font-size:19px}
+.dot{width:34px;height:34px;border-radius:50%;border:3px solid var(--ink);display:grid;place-items:center;font-size:15px;background:rgba(255,255,255,.55);color:var(--muted)}
+.dot.on{background:var(--gold);color:var(--ink)}
+
+.board{flex:1;min-height:0;overflow:auto;padding:6px 8px 14px;margin:0 -8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
+.card{background:var(--paper);border:4px solid var(--ink);border-radius:14px;box-shadow:0 6px 0 var(--ink);padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:130px}
+.card .txt{font-size:clamp(21px,1.45vw,30px);line-height:1.3;word-break:keep-all;overflow-wrap:anywhere}
+.card .foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card.sel{background:var(--gold2);transform:translateY(-4px);box-shadow:0 10px 0 var(--ink)}
+.card.used{background:#efe6d3}
+.card.revealed{background:var(--gold2)}
+.card.rolling{animation:shake .12s linear infinite;background:#fff}
+.qpick{border:0;background:none;padding:0;text-align:left;width:100%;cursor:pointer}
+.numtag{font-size:20px;background:var(--blue);color:var(--ink);text-shadow:none}
+.usedtag{font-size:16px;color:var(--muted)}
+.who{font-size:26px}
+.qmark{font-size:22px;color:var(--faint);letter-spacing:.2em}
+.roll{font-size:22px;color:var(--red-ink)}
+.empty{padding:28px;text-align:center;font-size:24px;color:var(--muted)}
+
+.qpanel{padding:16px 26px;display:flex;gap:20px;align-items:center}
+.qpanel .q{font-size:clamp(28px,2.7vw,48px);line-height:1.25}
+.qpanel .by{font-size:18px;color:var(--muted);margin-top:4px}
+.qpanel .ic{fill:var(--gold)}
+.hint{color:#fff;text-shadow:2px 2px 0 var(--ink);font-size:24px}
+
+.bottom{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.bottom .grow{flex:1}
+.hiddenbox{margin-top:18px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.hrow{display:flex;gap:12px;align-items:center;font-size:19px;border-top:2px dashed #d9c7a3;padding-top:8px}
+.hrow span{flex:1}
+
+/* 기록·설정 */
+.page{max-width:1000px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.pbox{padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+.pbox h2{margin:0;font-size:26px;font-weight:400}
+.srow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-top:2px dashed #d9c7a3;padding-top:12px;font-size:20px}
+.srow:first-of-type{border-top:0;padding-top:0}
+.srow .t{flex:1;min-width:200px}
+.alist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:19px}
+.alist li{display:flex;gap:10px}
+.alist .n{flex:none;min-width:48px;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:19px;color:var(--muted)}
+.field textarea,.field input[type=number]{border:3px solid var(--ink);border-radius:10px;background:#fff;padding:10px 12px;font-size:20px;line-height:1.5}
+.field textarea{min-height:130px;resize:vertical}
+.field input[type=number]{width:120px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+"use strict";
+const db = makeDB();
+paintScenery();
+if (db.demo) {
+  const b = document.createElement("div"); b.className = "demo-bar";
+  b.textContent = "체험 모드예요. 이 컴퓨터 안에서만 연결돼요. (config.js를 채우면 학생 태블릿과 연결돼요)";
+  document.body.prepend(b);
+}
+const app = $("#app");
+const studentURL = location.href.replace(/[?#].*$/, "").replace(/teacher\.html$/, "");
+const studentAddr = studentURL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+let live = null, settings = null, questions = [], answers = [], rounds = [];
+let view = "start", selectedQ = null, showHidden = false, recordSid = null, recordData = null, sessionsCache = [];
+const rolling = new Set(), justRevealed = new Set();
+let subSid = null, unsubQs = null, unsubRounds = null, ansKey = null, unsubAns = null;
+let seenQ = null, seenA = null, freshIds = new Set();
+
+const S = () => ({ ...DEFAULTS, ...(settings || {}) });
+const N = () => (live && live.studentCount) || S().studentCount;
+const sid = () => live && live.sid;
+const active = () => !!(live && live.sid && ["write", "pick", "answer"].includes(live.phase));
+
+db.watchSettings(s => { settings = s; if (view === "settings" && !$("#setFrames")) render(); });
+db.watchLive(l => {
+  const prevPhase = live && live.phase;
+  live = l; syncSubs();
+  if (view === "game" && !active()) view = "start";
+  if (view === "game" && live && prevPhase !== live.phase) selectedQ = null;
+  render();
+});
+
+function syncSubs() {
+  const s = sid();
+  if (s !== subSid) {
+    if (unsubQs) unsubQs(); if (unsubRounds) unsubRounds();
+    unsubQs = unsubRounds = null; questions = []; rounds = []; seenQ = null; subSid = s;
+    if (s) {
+      unsubQs = db.watchQuestions(s, qs => {
+        const fresh = seenQ ? qs.filter(q => !seenQ.has(q.id)) : [];
+        if (fresh.length) { Sound.fx("coin"); fresh.forEach(q => freshIds.add(q.id)); }
+        seenQ = new Set(qs.map(q => q.id)); questions = qs; render();
+      });
+      unsubRounds = db.watchRounds(s, r => { rounds = r; render(); });
+    }
+  }
+  const ak = s && live.round ? s + "_" + live.round : null;
+  if (ak !== ansKey) {
+    if (unsubAns) unsubAns(); unsubAns = null; answers = []; seenA = null; ansKey = ak;
+    if (ak) unsubAns = db.watchAnswers(s, live.round, as => {
+      const fresh = seenA ? as.filter(a => !seenA.has(a.id)) : [];
+      if (fresh.length) { Sound.fx("coin"); fresh.forEach(a => freshIds.add(a.id)); }
+      seenA = new Set(as.map(a => a.id));
+      as.forEach(a => { if (rolling.has(a.id)) a.revealed = false; });
+      answers = as; render();
+    });
+  }
+}
+
+/* ---------- 그리기 ---------- */
+function render() {
+  const music = view === "game" && active() ? live.phase : null;
+  if (music) Sound.play(music); else Sound.stop();
+  app.classList.toggle("fit", view === "game");
+  if (view === "start") renderStart();
+  else if (view === "game") renderGame();
+  else if (view === "records") renderRecords();
+  else if (view === "record") renderRecord();
+  else if (view === "settings") renderSettings();
+}
+
+function soundBtns() {
+  return `<button class="iconbtn" type="button" id="mBtn" aria-pressed="${Sound.prefs.music}" aria-label="배경음악 켜기/끄기" title="배경음악">${ic("music")}</button>
+    <button class="iconbtn" type="button" id="sBtn" aria-pressed="${Sound.prefs.sfx}" aria-label="효과음 켜기/끄기" title="효과음">${ic("volume")}</button>`;
+}
+function bindSound() {
+  const m = $("#mBtn"), s = $("#sBtn");
+  if (m) m.onclick = () => { Sound.init(); Sound.setMusic(!Sound.prefs.music); m.setAttribute("aria-pressed", Sound.prefs.music); };
+  if (s) s.onclick = () => { Sound.init(); Sound.setSfx(!Sound.prefs.sfx); s.setAttribute("aria-pressed", Sound.prefs.sfx); if (Sound.prefs.sfx) Sound.fx("pop"); };
+}
+
+function renderStart() {
+  const a = active();
+  app.innerHTML = `<div class="center">
+    <h1 class="logo title-shadow">라면질문 점프!</h1>
+    <div class="title-shadow" style="font-size:26px">삶으로 연결하는 질문 만들기</div>
+    <div class="blk addr">학생 주소 <b>${esc(studentAddr)}</b></div>
+    ${a ? `<div class="row">
+        <button class="btn red big" type="button" id="goOn">${ic("play", 28, 'fill="#fff"')}이어서 하기</button>
+        <button class="btn" type="button" id="goNew">새 게임 시작</button></div>
+        <div class="title-shadow" style="font-size:19px">진행 중인 게임이 있어요</div>`
+      : `<button class="btn red big" type="button" id="goNew">${ic("play", 28, 'fill="#fff"')}게임 시작</button>`}
+    <div class="row">
+      <button class="btn small" type="button" id="goRec">${ic("book", 20)}지난 기록</button>
+      <button class="btn small" type="button" id="goSet">${ic("gear", 20)}설정</button>
+    </div></div>`;
+  if ($("#goOn")) $("#goOn").onclick = () => { Sound.init(); view = "game"; render(); };
+  $("#goNew").onclick = newGame;
+  $("#goRec").onclick = () => { Sound.init(); openRecords(); };
+  $("#goSet").onclick = () => { Sound.init(); view = "settings"; render(); };
+}
+
+async function newGame() {
+  Sound.init();
+  if (active() && !confirm("진행 중인 게임을 끝내고 새 게임을 시작할까요?\n(지금까지 한 내용은 기록에 남아요)")) return;
+  const btn = $("#goNew"); if (btn) btn.disabled = true;
+  try {
+    if (active()) await db.updateSession(sid(), { endedAt: Date.now() });
+    const now = Date.now(), st = S();
+    const id = await db.createSession({ at: now, date: todayStr(), rounds: 0 });
+    const next = { sid: id, phase: "write", round: 0, question: null, accepting: true,
+      frames: st.frames, examples: st.examples, studentCount: st.studentCount, startedAt: now };
+    await db.setLive(next);
+    live = { ...(live || {}), ...next }; syncSubs();
+    view = "game"; Sound.fx("stage"); render();
+  } catch (e) { onErr(e); if (btn) btn.disabled = false; }
+}
+
+const stepsHTML = p => `<div class="steps">${[["write", "질문 쓰기"], ["pick", "질문 고르기"], ["answer", "답하기"]]
+  .map(([k, t]) => `<span class="${p === k ? "on" : ""}">${t}</span>`).join("")}</div>`;
+
+function stripHTML(label, nums) {
+  let d = "";
+  for (let i = 1; i <= N(); i++) d += `<span class="dot${nums.has(i) ? " on" : ""}">${i}</span>`;
+  return `<div class="strip"><span class="lab">${label}</span>${d}</div>`;
+}
+
+function renderGame() {
+  if (!active()) { view = "start"; return renderStart(); }
+  const p = live.phase;
+  const prevScroll = $(".board") ? $(".board").scrollTop : 0;
+  const visQ = questions.filter(q => !q.hidden), hidQ = questions.filter(q => q.hidden);
+  const usedIds = new Set(rounds.map(r => r.qid));
+  let counter, body, bottom, strip, panel = "";
+
+  if (p === "write" || p === "pick") {
+    counter = `<span class="coin"></span>질문 × ${visQ.length}`;
+    strip = stripHTML("질문 보낸 친구", new Set(questions.map(q => q.num)));
+    if (p === "write") panel = `<div class="hint">친구들의 라면질문이 도착하고 있어요! · 학생 주소 ${esc(studentAddr)}</div>`;
+    else panel = `<div class="hint">재미있을 것 같은 질문을 하나 골라요!</div>`;
+    body = visQ.length ? `<div class="grid">${visQ.map(q => qCard(q, p, usedIds)).join("")}</div>`
+      : `<div class="blk empty">아직 도착한 질문이 없어요</div>`;
+    if (hidQ.length) body += `<div class="blk hiddenbox"><button class="btn small" type="button" id="togHid" style="align-self:flex-start">${ic(showHidden ? "eyeOff" : "eye", 20)}숨긴 질문 ${hidQ.length}개 ${showHidden ? "접기" : "보기"}</button>
+      ${showHidden ? hidQ.map(q => `<div class="hrow"><span>${q.num}번 · ${esc(q.text)}</span><button class="btn small" type="button" data-unhide="${q.id}">다시 보이기</button></div>`).join("") : ""}</div>`;
+    const sel = visQ.find(q => q.id === selectedQ);
+    bottom = p === "write"
+      ? `<button class="btn small" type="button" id="endGame">${ic("flag", 20)}게임 끝내기</button><div class="grow"></div>
+         <button class="btn red" type="button" id="toPick">질문 받기 끝! 고르러 가기 ▶</button>`
+      : `<button class="btn small" type="button" id="endGame">${ic("flag", 20)}게임 끝내기</button>
+         <button class="btn small" type="button" id="toWrite">질문 더 받기</button><div class="grow"></div>
+         <button class="btn red" type="button" id="sendQ" ${sel ? "" : "disabled"}>${ic("send", 22)}${sel ? "이 질문 보내기 ▶" : "질문을 눌러서 골라요"}</button>`;
+  } else {
+    const q = live.question || {};
+    const done = new Set(answers.map(a => a.num));
+    counter = `<span class="coin"></span>답 × ${answers.length} / ${N()}`;
+    strip = stripHTML("답 보낸 친구", done);
+    panel = `<div class="blk qpanel">${ic("star", 50)}<div><div class="q">${esc(q.text)}</div>${q.num ? `<div class="by">${q.num}번 친구의 질문</div>` : ""}</div></div>`;
+    body = answers.length ? `<div class="grid">${answers.map(aCard).join("")}</div>`
+      : `<div class="blk empty">친구들의 답을 기다리고 있어요</div>`;
+    const acc = live.accepting !== false;
+    bottom = `<button class="btn small" type="button" id="endGame">${ic("flag", 20)}게임 끝내기</button>
+      <span class="hint" style="font-size:19px">궁금한 답의 ‘누구?’를 누르면 번호가 나와요</span><div class="grow"></div>
+      <button class="btn ${acc ? "" : "blue"}" type="button" id="togAcc">${acc ? "답 받기 멈추기" : "답 다시 받기"}</button>
+      <button class="btn red" type="button" id="toPick">다음 질문 고르기 ▶</button>`;
+  }
+
+  app.innerHTML = `
+    <header class="top">
+      <span class="badge" style="font-size:22px">${p === "answer" ? "STAGE " + live.round : "READY"}</span>
+      <div class="title-shadow" style="font-size:32px">라면질문 점프!</div>
+      <div class="grow" style="display:flex;justify-content:center">${stepsHTML(p)}</div>
+      <div class="blk counter">${counter}</div>
+      ${soundBtns()}
+      <button class="iconbtn" type="button" id="homeBtn" aria-label="첫 화면으로" title="첫 화면">${ic("home")}</button>
+    </header>
+    ${strip}${panel}
+    <div class="board">${body}</div>
+    <div class="bottom">${bottom}</div>`;
+  $(".board").scrollTop = prevScroll;
+  freshIds.clear();
+  bindSound();
+  $("#homeBtn").onclick = () => { view = "start"; render(); };
+  $("#endGame").onclick = endGame;
+  $$("[data-hide]").forEach(b => b.onclick = e => { e.stopPropagation(); hideQ(b.dataset.hide); });
+  $$("[data-unhide]").forEach(b => b.onclick = () => db.updateQuestion(sid(), b.dataset.unhide, { hidden: false }).catch(onErr));
+  if ($("#togHid")) $("#togHid").onclick = () => { showHidden = !showHidden; render(); };
+  $$("[data-pick]").forEach(b => b.onclick = () => { selectedQ = selectedQ === b.dataset.pick ? null : b.dataset.pick; Sound.fx("pop"); render(); });
+  $$("[data-who]").forEach(b => b.onclick = () => reveal(b.dataset.who));
+  if ($("#toPick")) $("#toPick").onclick = () => { db.setLive({ phase: "pick" }).catch(onErr); };
+  if ($("#toWrite")) $("#toWrite").onclick = () => { db.setLive({ phase: "write" }).catch(onErr); };
+  if ($("#sendQ")) $("#sendQ").onclick = sendQuestion;
+  if ($("#togAcc")) $("#togAcc").onclick = () => { const on = live.accepting === false; db.setLive({ accepting: on }).catch(onErr); Sound.fx(on ? "pop" : "down"); };
+}
+
+function qCard(q, p, usedIds) {
+  const used = usedIds.has(q.id), sel = q.id === selectedQ;
+  const txt = p === "pick"
+    ? `<button class="qpick txt" type="button" data-pick="${q.id}" aria-pressed="${sel}">${esc(q.text)}</button>`
+    : `<div class="txt">${esc(q.text)}</div>`;
+  return `<div class="card${sel ? " sel" : ""}${used ? " used" : ""}${freshIds.has(q.id) ? " pop" : ""}">${txt}
+    <div class="foot"><span style="display:flex;gap:10px;align-items:center"><span class="badge numtag">${q.num}번</span>${used ? `<span class="usedtag">했던 질문</span>` : ""}</span>
+    <button class="iconbtn" type="button" data-hide="${q.id}" aria-label="이 질문 숨기기" title="숨기기" style="width:42px;height:42px">${ic("eyeOff", 20)}</button></div></div>`;
+}
+
+function aCard(a) {
+  const roll = rolling.has(a.id), rev = a.revealed && !roll;
+  const left = roll ? `<span class="roll">두구두구…</span>`
+    : rev ? `<span class="badge who${justRevealed.has(a.id) ? " pop" : ""}">${a.num}번</span>`
+    : `<span class="qmark">???</span>`;
+  return `<div class="card${rev ? " revealed" : ""}${roll ? " rolling" : ""}${freshIds.has(a.id) ? " pop" : ""}">
+    <div class="txt">${esc(a.text)}</div>
+    <div class="foot">${left}
+      <button class="btn small ${rev ? "" : "gold"}" type="button" data-who="${a.id}" ${roll ? "disabled" : ""}>${rev ? "가리기" : ic("user", 18) + "누구?"}</button></div></div>`;
+}
+
+/* ---------- 동작 ---------- */
+function hideQ(id) {
+  if (selectedQ === id) selectedQ = null;
+  Sound.fx("down");
+  db.updateQuestion(sid(), id, { hidden: true }).catch(onErr);
+}
+
+async function sendQuestion() {
+  const q = questions.find(x => x.id === selectedQ && !x.hidden);
+  if (!q) return;
+  $("#sendQ").disabled = true;
+  const round = (live.round || 0) + 1, s = sid();
+  try {
+    await db.setRound(s, round, { round, qid: q.id, text: q.text, num: q.num, at: Date.now() });
+    await db.setLive({ phase: "answer", round, question: { id: q.id, text: q.text, num: q.num }, accepting: true });
+    db.updateSession(s, { rounds: round }).catch(() => {});
+    selectedQ = null; Sound.fx("stage");
+  } catch (e) { onErr(e); }
+}
+
+function reveal(id) {
+  const a = answers.find(x => x.id === id);
+  if (!a || rolling.has(id)) return;
+  if (a.revealed) { a.revealed = false; Sound.fx("down"); render(); db.updateAnswer(sid(), id, { revealed: false }).catch(onErr); return; }
+  Sound.init();
+  rolling.add(id); Sound.fx("drumroll", 1.4); render();
+  const s = sid();
+  setTimeout(() => {
+    rolling.delete(id); justRevealed.add(id);
+    const cur = answers.find(x => x.id === id); if (cur) cur.revealed = true;
+    Sound.fx("tada"); render();
+    db.updateAnswer(s, id, { revealed: true }).catch(onErr);
+    setTimeout(() => justRevealed.delete(id), 900);
+  }, 1400);
+}
+
+async function endGame() {
+  if (!confirm("게임을 끝낼까요?\n학생 화면에 '게임 끝'이 나오고, 지금까지 한 내용은 기록에 남아요.")) return;
+  try {
+    await db.updateSession(sid(), { endedAt: Date.now() });
+    await db.setLive({ phase: "end", accepting: false });
+    Sound.fx("fanfare");
+  } catch (e) { onErr(e); }
+}
+
+/* ---------- 기록 ---------- */
+async function openRecords() {
+  view = "records"; sessionsCache = null; render();
+  try { sessionsCache = await db.listSessions(); } catch (e) { onErr(e); sessionsCache = []; }
+  if (view === "records") render();
+}
+
+function pageHead(title, backTo) {
+  return `<header class="top"><button class="iconbtn" type="button" id="backBtn" aria-label="뒤로">${ic("back")}</button>
+    <div class="title-shadow" style="font-size:32px">${title}</div></header>`;
+}
+
+function renderRecords() {
+  const list = sessionsCache;
+  app.innerHTML = `${pageHead("지난 기록")}<div class="page">
+    <div class="blk pbox"><div class="row" style="justify-content:space-between">
+      <h2>수업한 날</h2>
+      <button class="btn small gold" type="button" id="xlsAll" ${list && list.length ? "" : "disabled"}>${ic("download", 20)}전체 기록 엑셀</button></div>
+      ${list == null ? `<div class="muted">불러오는 중이에요…</div>`
+        : !list.length ? `<div class="muted">아직 기록이 없어요</div>`
+        : list.map(s => `<div class="srow"><span class="t">${dateLabel(s.at)}<br><span class="muted" style="font-size:17px">고른 질문 ${s.rounds || 0}개${live && live.sid === s.id && active() ? " · 진행 중" : ""}</span></span>
+            <button class="btn small" type="button" data-open="${s.id}">보기</button>
+            <button class="btn small" type="button" data-xls="${s.id}">${ic("download", 18)}엑셀</button></div>`).join("")}
+    </div></div>`;
+  $("#backBtn").onclick = () => { view = "start"; render(); };
+  $$("[data-open]").forEach(b => b.onclick = async () => {
+    recordSid = b.dataset.open; recordData = null; view = "record"; render();
+    try { recordData = await db.dump(recordSid); } catch (e) { onErr(e); recordData = { questions: [], answers: [], rounds: [] }; }
+    if (view === "record") render();
+  });
+  $$("[data-xls]").forEach(b => b.onclick = () => exportXlsx([b.dataset.xls]));
+  if ($("#xlsAll")) $("#xlsAll").onclick = () => exportXlsx(list.map(s => s.id));
+}
+
+function renderRecord() {
+  const s = (sessionsCache || []).find(x => x.id === recordSid) || {};
+  const d = recordData;
+  let inner = `<div class="blk pbox"><div class="muted">불러오는 중이에요…</div></div>`;
+  if (d) {
+    const roundsHTML = d.rounds.map(r => {
+      const as = d.answers.filter(a => a.round === r.round).sort((x, y) => x.num - y.num);
+      return `<div class="blk pbox"><h2>${r.round}. ${esc(r.text)}</h2><div class="muted" style="font-size:17px">${r.num}번 친구의 질문 · 답 ${as.length}개</div>
+        <ul class="alist">${as.map(a => `<li><span class="n">${a.num}번</span><span>${esc(a.text)}</span></li>`).join("") || `<li class="muted">답이 없어요</li>`}</ul></div>`;
+    }).join("");
+    const qs = d.questions.slice().sort((x, y) => x.num - y.num || x.at - y.at);
+    inner = (roundsHTML || `<div class="blk pbox"><div class="muted">고른 질문이 없어요</div></div>`) +
+      `<div class="blk pbox"><h2>학생들이 낸 질문 (${qs.length}개)</h2><ul class="alist">${qs.map(q =>
+        `<li><span class="n">${q.num}번</span><span>${esc(q.text)}${q.hidden ? ` <span class="muted">(숨김)</span>` : ""}</span></li>`).join("") || `<li class="muted">질문이 없어요</li>`}</ul></div>`;
+  }
+  app.innerHTML = `${pageHead(s.at ? dateLabel(s.at) : "기록")}<div class="page">
+    <div class="row" style="justify-content:flex-end"><button class="btn small gold" type="button" id="xlsOne">${ic("download", 20)}엑셀로 내려받기</button></div>${inner}</div>`;
+  $("#backBtn").onclick = () => { view = "records"; render(); };
+  $("#xlsOne").onclick = () => exportXlsx([recordSid]);
+}
+
+let xlsxLoading = null;
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return xlsxLoading = xlsxLoading || new Promise((ok, no) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    sc.onload = ok; sc.onerror = () => { xlsxLoading = null; no(new Error("xlsx")); };
+    document.head.appendChild(sc);
+  });
+}
+const timeStr = ms => { if (!ms) return ""; const d = new Date(ms); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()); };
+
+async function exportXlsx(ids) {
+  toast("엑셀 파일을 만들고 있어요…");
+  try {
+    await loadXLSX();
+    if (!sessionsCache) sessionsCache = await db.listSessions();
+    const qRows = [["수업 날짜", "학생 번호", "질문", "상태", "보낸 시각"]];
+    const aRows = [["수업 날짜", "순서", "고른 질문", "질문한 학생", "답한 학생", "답", "번호 공개", "보낸 시각", "고친 시각"]];
+    const ordered = ids.map(id => (sessionsCache.find(s => s.id === id) || { id, at: 0 })).sort((a, b) => a.at - b.at);
+    for (const s of ordered) {
+      const d = await db.dump(s.id), day = s.at ? dateLabel(s.at) : "";
+      const pickOrder = new Map(d.rounds.map(r => [r.qid, r.round]));
+      d.questions.slice().sort((x, y) => x.num - y.num || x.at - y.at).forEach(q => {
+        const st = [pickOrder.has(q.id) ? pickOrder.get(q.id) + "번째로 고름" : "", q.hidden ? "숨김" : ""].filter(Boolean).join(", ");
+        qRows.push([day, q.num, q.text, st, timeStr(q.at)]);
+      });
+      d.rounds.forEach(r => {
+        d.answers.filter(a => a.round === r.round).sort((x, y) => x.num - y.num)
+          .forEach(a => aRows.push([day, r.round, r.text, r.num, a.num, a.text, a.revealed ? "공개" : "", timeStr(a.at), timeStr(a.editedAt)]));
+      });
+    }
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.aoa_to_sheet(qRows), ws2 = XLSX.utils.aoa_to_sheet(aRows);
+    ws1["!cols"] = [{ wch: 24 }, { wch: 9 }, { wch: 60 }, { wch: 16 }, { wch: 10 }];
+    ws2["!cols"] = [{ wch: 24 }, { wch: 6 }, { wch: 50 }, { wch: 10 }, { wch: 9 }, { wch: 50 }, { wch: 9 }, { wch: 10 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "질문");
+    XLSX.utils.book_append_sheet(wb, ws2, "답");
+    const first = ordered[0], d0 = first && first.at ? new Date(first.at) : new Date();
+    const name = ids.length > 1 ? `ramen-question_all_${todayStr()}.xlsx`
+      : `ramen-question_${todayStr(d0)}_${pad2(d0.getHours())}${pad2(d0.getMinutes())}.xlsx`;
+    const blob = new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })],
+      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob), link = document.createElement("a");
+    link.href = url; link.download = name; link.style.display = "none";
+    document.body.appendChild(link); link.click();
+    setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 1000);
+    toast("엑셀 파일을 내려받았어요");
+  } catch (e) { console.error(e); toast("엑셀 파일을 만들지 못했어요. 인터넷 연결을 확인해 주세요."); }
+}
+
+/* ---------- 설정 ---------- */
+function renderSettings() {
+  const st = S();
+  app.innerHTML = `${pageHead("설정")}<div class="page"><div class="blk pbox">
+    <div class="field"><label for="setN">학생 수</label><input type="number" id="setN" min="1" max="40" value="${st.studentCount}"></div>
+    <div class="field"><label for="setFrames">문장틀 (한 줄에 하나씩, 빈칸은 ____ 로 써요)</label><textarea id="setFrames">${esc(st.frames.join("\n"))}</textarea></div>
+    <div class="field"><label for="setEx">예시 질문 (한 줄에 하나씩)</label><textarea id="setEx">${esc(st.examples.join("\n"))}</textarea></div>
+    <div class="field"><label for="setVol">소리 크기</label><input type="range" id="setVol" min="0" max="1" step="0.05" value="${Sound.prefs.vol}" style="width:280px"></div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn small" type="button" id="setReset">처음 값으로</button>
+      <button class="btn red" type="button" id="setSave">${ic("check", 22)}저장하기</button></div>
+  </div></div>`;
+  $("#backBtn").onclick = () => { view = "start"; render(); };
+  $("#setVol").oninput = e => { Sound.init(); Sound.setVol(+e.target.value); };
+  $("#setVol").onchange = () => Sound.fx("coin");
+  $("#setReset").onclick = () => {
+    $("#setN").value = DEFAULTS.studentCount; $("#setFrames").value = DEFAULTS.frames.join("\n"); $("#setEx").value = DEFAULTS.examples.join("\n");
+  };
+  $("#setSave").onclick = async () => {
+    const lines = v => v.split("\n").map(x => x.trim()).filter(Boolean).map(x => x.slice(0, MAXLEN));
+    const n = Math.max(1, Math.min(40, parseInt($("#setN").value, 10) || DEFAULTS.studentCount));
+    const data = { studentCount: n, frames: lines($("#setFrames").value), examples: lines($("#setEx").value) };
+    if (!data.frames.length) data.frames = DEFAULTS.frames;
+    try {
+      await db.saveSettings(data);
+      if (active()) await db.setLive(data);
+      toast("저장했어요!"); view = "start"; render();
+    } catch (e) { onErr(e); }
+  };
+}
+
+render();
+</script>
+</body>
+</html>

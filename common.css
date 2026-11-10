@@ -1,0 +1,73 @@
+/* 라면질문 점프! — 점프 플랫폼 디자인 */
+[hidden]{display:none!important}
+:root{
+  --sky:#5cb8ff; --ink:#2b1d14; --paper:#fff8e7; --paper2:#fff1cf; --white:#fff;
+  --red:#ff6b4a; --red-ink:#c43d1c; --gold:#ffc93c; --gold2:#ffe08a; --blue:#8fd6ff; --green:#3fae55;
+  --muted:#6b4a30; --faint:#8a6d55;
+  --font:"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--sky);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.4;word-break:keep-all;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.5}
+:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
+.ic{flex:none;display:block}
+
+/* 배경 */
+.scenery{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.cloud{position:absolute;background:#fff;border-radius:40px;opacity:.92;height:42px}
+.cloud::before{content:"";position:absolute;left:24%;top:-24px;width:46%;height:56px;background:#fff;border-radius:50%}
+.c1{left:4%;top:48%;width:130px}
+.c2{right:7%;top:34%;width:160px}
+.c3{left:46%;top:66%;width:110px;opacity:.7}
+.hill{position:absolute;bottom:36px;background:var(--green);border:4px solid var(--ink);border-radius:50% 50% 0 0}
+.h1{left:-70px;width:380px;height:210px}
+.h2{right:-50px;width:290px;height:150px;background:#58c46b}
+.ground{position:absolute;left:0;right:0;bottom:0;height:40px;background-color:#c8642c;border-top:4px solid var(--ink);
+  background-image:linear-gradient(var(--ink) 3px,transparent 3px),linear-gradient(90deg,var(--ink) 3px,transparent 3px);background-size:44px 20px}
+.wrap{position:relative;z-index:1;min-height:100vh;padding:20px 28px 64px;display:flex;flex-direction:column;gap:18px}
+
+/* 블록 */
+.blk{background:var(--paper);border:4px solid var(--ink);border-radius:14px;box-shadow:0 6px 0 var(--ink)}
+.title-shadow{color:#fff;text-shadow:3px 3px 0 var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:4px solid var(--ink);border-radius:14px;background:var(--paper);
+  box-shadow:0 6px 0 var(--ink);padding:8px 20px;min-height:54px;font-size:22px;transition:transform .06s,box-shadow .06s}
+.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
+.btn.red{background:var(--red);color:#fff;text-shadow:2px 2px 0 var(--ink)}
+.btn.gold{background:var(--gold)}
+.btn.blue{background:var(--blue)}
+.btn.small{min-height:44px;font-size:18px;padding:4px 14px;border-width:3px;box-shadow:0 4px 0 var(--ink);border-radius:12px}
+.btn.big{min-height:72px;font-size:30px;padding:10px 34px}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border:3px solid var(--ink);border-radius:12px;background:var(--paper);box-shadow:0 4px 0 var(--ink);padding:0}
+.iconbtn[aria-pressed="false"]{background:#d9cbb5;color:var(--faint)}
+.iconbtn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.badge{display:inline-flex;align-items:center;gap:6px;border:3px solid var(--ink);border-radius:10px;padding:2px 12px;background:var(--red);color:#fff;text-shadow:1px 1px 0 var(--ink)}
+.coin{width:30px;height:30px;border-radius:50%;background:var(--gold);border:3px solid var(--ink);box-shadow:inset -4px -4px 0 #e59a12;flex:none}
+.coin.off{background:#e8dcc6;box-shadow:none;border-style:dashed;border-color:#a28a6c}
+.muted{color:var(--muted)}
+
+/* 헤더 */
+.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.top .grow{flex:1}
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.steps span{padding:5px 14px;border-radius:20px;background:rgba(255,255,255,.55);font-size:18px;border:3px solid transparent}
+.steps span.on{background:var(--gold);border-color:var(--ink);box-shadow:0 4px 0 var(--ink)}
+.counter{display:flex;align-items:center;gap:10px;padding:4px 14px;font-size:24px}
+
+/* 토스트 */
+#toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:50;pointer-events:none;
+  background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-size:18px;max-width:min(92vw,560px);text-align:center;transition:.2s}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.demo-bar{position:relative;z-index:2;background:var(--gold2);border-bottom:3px solid var(--ink);padding:6px 16px;font-size:16px;text-align:center}
+
+/* 애니메이션 */
+@keyframes popin{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-3px) rotate(-1deg)}75%{transform:translateX(3px) rotate(1deg)}}
+@keyframes spin{to{transform:rotateY(360deg)}}
+.pop{animation:popin .35s ease-out both}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
