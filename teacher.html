@@ -333,7 +333,6 @@ function reveal(id) {
     rolling.delete(id); justRevealed.add(id);
     const cur = answers.find(x => x.id === id); if (cur) cur.revealed = true;
     Sound.fx("tada"); render();
-    if (cur) showRevealPopup(cur);
     db.updateAnswer(s, id, { revealed: true }).catch(onErr);
     setTimeout(() => justRevealed.delete(id), 900);
   }, 1400);
