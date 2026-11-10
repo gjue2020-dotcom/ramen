@@ -65,6 +65,18 @@
 .field textarea,.field input[type=number]{border:3px solid var(--ink);border-radius:10px;background:#fff;padding:10px 12px;font-size:20px;line-height:1.5}
 .field textarea{min-height:130px;resize:vertical}
 .field input[type=number]{width:120px}
+
+/* 번호 공개 팝업 */
+.reveal{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(43,29,20,.55);cursor:pointer;padding:24px}
+.reveal .box{position:relative;background:var(--gold);border:6px solid var(--ink);border-radius:28px;box-shadow:0 12px 0 var(--ink);
+  padding:28px 64px 34px;display:flex;flex-direction:column;align-items:center;gap:10px;max-width:min(92vw,1100px);animation:popin .45s cubic-bezier(.2,1.6,.4,1) both}
+.reveal .who-label{font-size:clamp(24px,2.4vw,40px)}
+.reveal .big{font-size:clamp(140px,19vw,300px);line-height:1;color:#fff;text-shadow:8px 8px 0 var(--ink);-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;letter-spacing:.02em}
+.reveal .ans{font-size:clamp(22px,2vw,34px);background:var(--paper);border:4px solid var(--ink);border-radius:16px;padding:10px 22px;text-align:center;max-width:100%}
+.reveal .box>svg{position:absolute;width:56px;height:56px;color:var(--ink);fill:#fff;animation:bob 1s ease-in-out infinite}
+.reveal .bar{position:absolute;left:24px;right:24px;bottom:12px;height:8px;border-radius:4px;background:rgba(43,29,20,.2);overflow:hidden}
+.reveal .bar i{display:block;height:100%;background:var(--ink);transform-origin:left;animation:shrink 3s linear forwards}
+@keyframes shrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 </style>
 </head>
 <body>
@@ -321,10 +333,35 @@ function reveal(id) {
     rolling.delete(id); justRevealed.add(id);
     const cur = answers.find(x => x.id === id); if (cur) cur.revealed = true;
     Sound.fx("tada"); render();
+    if (cur) showRevealPopup(cur);
     db.updateAnswer(s, id, { revealed: true }).catch(onErr);
     setTimeout(() => justRevealed.delete(id), 900);
   }, 1400);
 }
+
+// 큰 화면 팝업: "n번!" — 3초 뒤 저절로 사라지고, 누르면 바로 닫혀요
+let popupTimer = null;
+function closeRevealPopup() {
+  clearTimeout(popupTimer);
+  const el = $("#revealPop"); if (el) el.remove();
+}
+function showRevealPopup(a) {
+  closeRevealPopup();
+  const el = document.createElement("div");
+  el.id = "revealPop"; el.className = "reveal";
+  el.setAttribute("role", "dialog"); el.setAttribute("aria-label", a.num + "번 친구의 답");
+  el.innerHTML = `<div class="box">
+      ${ic("star", 56, 'style="left:-26px;top:-26px"')}
+      ${ic("star", 56, 'style="right:-26px;top:-26px;animation-delay:.3s"')}
+      <div class="who-label">이 답은 바로…</div>
+      <div class="big">${a.num}번!</div>
+      <div class="ans">${esc(a.text)}</div>
+      <div class="bar"><i></i></div></div>`;
+  el.onclick = closeRevealPopup;
+  document.body.appendChild(el);
+  popupTimer = setTimeout(closeRevealPopup, 3000);
+}
+addEventListener("keydown", e => { if (e.key === "Escape") closeRevealPopup(); });
 
 async function endGame() {
   if (!confirm("게임을 끝낼까요?\n학생 화면에 '게임 끝'이 나오고, 지금까지 한 내용은 기록에 남아요.")) return;
